@@ -1,0 +1,613 @@
+clc;
+clear;
+close;
+%Initialize the scene
+scene = simpleGameEngine('BattleshipSprites.png', 32, 32, 7, [255, 255, 255]);
+%Initialize a background for the player and one for the enemy. Also
+%initialzize blank backgrounds for hits and misses
+playerLayer1 = instatiateLayer(9, true);
+enemyLayer1 = instatiateLayer(9, true);
+enemyBlank = instatiateLayer(9, false);
+playerLayer2 = instatiateLayer(9, false);
+enemyLayer2 = instatiateLayer(9, false);
+%ask for name and draw scene
+fprintf('Welcome to Space Battleship! It is just like normal Battleship, but in space! This game comes featured with a randomly generated background to make every game completely different! The game also has an AI that you will play against!\n')
+fprintf('\n\n\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t---------------It is a feature not a bug!---------------\n\n')
+fprintf('This game has an extra special feature! To help encourage you to take it slow and thoroughly enjoy the game, if you click too fast the game may respond in ways you did not intend. The game will not break, but it will be a bit more annoying.')
+fprintf('\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t---------------It is a feature not a bug!---------------\n\n')
+name = input('What is your name?', 's');
+clc;
+drawScene(scene, playerLayer1);
+%Have the player place ships
+playerShips = [];
+fprintf('The controls for placing your ships are: \n Left Click: Click any unoccupied space to place your ship. Left click the same square you placed it to rotate (if there is room)\nRight Click: lock in your ship and move to the next')
+fprintf('\n\nPlease Place your carrier(5 spaces)')
+[carrier, playerLayer1] = placeShip(5, true, playerShips, scene, playerLayer1);
+playerShips = [playerShips(:, :); carrier(:, :)];
+fprintf('\n\nPlease Place your battleship(4 spaces)')
+[battleship, playerLayer1] = placeShip(4, true, playerShips, scene, playerLayer1);
+playerShips = [playerShips(:, :); battleship(:, :)];
+fprintf('\n\nPlease Place your cruiser(3 spaces)')
+[cruiser, playerLayer1] = placeShip(3, true, playerShips, scene, playerLayer1);
+playerShips = [playerShips(:, :); cruiser(:, :)];
+fprintf('\n\nPlease Place your submarine(3 spaces)')
+[submarine, playerLayer1] = placeShip(3, true, playerShips, scene, playerLayer1);
+playerShips = [playerShips(:, :); submarine(:, :)];
+fprintf('\n\nPlease Place your destroyer(3 spaces)')
+[destroyer, playerLayer1] = placeShip(3, true, playerShips, scene, playerLayer1);
+playerShips = [playerShips(:, :); destroyer(:, :)];
+%place enemy ships
+enemyShips = [];
+fprintf('Enemy is placing their carrier!')
+pause(1)
+[enemyCarrier, enemyBlank] = placeShip(5, false, enemyShips, scene, enemyBlank);
+enemyShips = [enemyShips(:, :); enemyCarrier(:, :)];
+fprintf('Enemy is placing their battleship!')
+pause(1)
+[enemyBattleship, enemyBlank] = placeShip(4, false, enemyShips, scene, enemyBlank);
+enemyShips = [enemyShips(:, :); enemyBattleship(:, :)];
+fprintf('Enemy is placing their cruiser!')
+pause(1)
+[enemyCruiser, enemyBlank] = placeShip(3, false, enemyShips, scene, enemyBlank);
+enemyShips = [enemyShips(:, :); enemyCruiser(:, :)];
+fprintf('Enemy is placing their submarine!')
+pause(1)
+[enemySubmarine, enemyBlank] = placeShip(3, false, enemyShips, scene, enemyBlank);
+enemyShips = [enemyShips(:, :); enemySubmarine(:, :)];
+fprintf('Enemy is placing their destroyer!')
+pause(1)
+[enemyDestroyer, enemyBlank] = placeShip(3, false, enemyShips, scene, enemyBlank);
+enemyShips = [enemyShips(:, :); enemyDestroyer(:, :)];
+%Remove the semi colon to display enemy ship locations if wanting to win
+%quickly for testing (make sure to record the locations because the console
+%will be cleared)
+enemyShips;
+%default winner is AI and if the palyer wins this will change to the
+%player's name
+winner = 'AI';
+%if the game is over
+gameOver = false;
+%Every square the player has hit (same with enemyTargets)
+targets = [0, 0; 0, 0];
+enemyTargets = [0, 0; 0, 0];
+%Sprite indecies
+hitSprite = 24;
+missSprite = 21;
+transparentSprite = 30;
+%Variables concerning AI
+targetAcquired = false;
+targetLoc = [];
+currentShip = '';
+%Create a checkerboard grid as a list for targets for the AI to search
+rowsToHit = [];
+colsToHit = [];
+for i=1:4
+    colsToHit = [colsToHit, 2:2:8,3:2:9];
+end
+for i=2:9
+    rowsToHit = [rowsToHit, i,i,i,i];
+end
+AIlocations = [rowsToHit;colsToHit];
+AIlocations = AIlocations';
+%main game loop
+while gameOver == false
+    %Draw the scene and get location of player click
+    clc;
+    drawScene(scene, enemyLayer1, enemyLayer2)
+    fprintf('\n\n\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t---------------Select target!---------------')
+    [row, col, ~] = getMouseInput(scene);
+    target = [row, col];
+    targets = [targets;target];
+    %If the player hit an enemy ship
+    if member(target, enemyShips)
+        %set the location to a hit sprite
+        enemyLayer2(target(1), target(2)) = hitSprite;
+        %remove the location from the list of enemy ship locations
+        [sz, ~] = size(enemyShips);
+        i = 1;
+        found = false;
+        while i <= sz && ~ found
+            if target == enemyShips(i,:)
+                enemyShips(i, :) = [];
+                found = true;
+            end
+            i = i + 1;
+        end
+        %check if that shot destroyed a ship, and if it did alert the
+        %player
+        messageOnDestroy(enemyShips, enemyCarrier, enemyBattleship, enemyCruiser, enemySubmarine, enemyDestroyer, target);
+    else
+        %If not hit display the miss sprite
+        enemyLayer2(target(1), target(2)) = missSprite;
+    end
+    %draw the scene after a pause
+    pause(3);
+    drawScene(scene, enemyLayer1, enemyLayer2);
+    clc;
+    fprintf('\n\n\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t---------------The enemy is attacking!---------------')
+    if ~length(enemyShips) == 0
+        pause(3);
+        drawScene(scene, playerLayer1, playerLayer2);
+        %Call the enemy ai to get a location and add to the list of
+        %locations the enemy has attacked
+        [enemyTarget(1), enemyTarget(2)] = enemyAI(enemyTargets, targetAcquired, targetLoc, AIlocations);
+        enemyTargets = [enemyTargets; enemyTarget];
+        %if the enemy hit
+        if member(enemyTarget, playerShips)
+            %make the location a hit sprite
+            playerLayer2(enemyTarget(1), enemyTarget(2)) = hitSprite;
+            %remove the location from the list of palyer ship locations
+            [sz, ~] = size(playerShips);
+            i = 1;
+            found = false;
+            while i <= sz && ~ found
+                if enemyTarget == playerShips(i,:)  
+                    playerShips(i, :);
+                    playerShips(i, :) = [];
+                    found = true;
+                end
+                i = i + 1;
+            end
+            %add the location to target loc and keep/setTargetAcquired to
+            %true
+            targetLoc = [targetLoc; enemyTarget];
+            targetAcquired = true;
+            %Check which ship it is a part of. If the ship is not the ship
+            %that is currently being pursued by the ai, then remove it from
+            %targetLoc, and if the ship was destroyed then reset targetLoc,
+            %targetAcquired, and currentShip
+            if member(enemyTarget, carrier)
+                [sz, ~] = size(targetLoc);
+                if sz == 1
+                    currentShip = 'carrier';
+                else
+                    if ~strcmp(currentShip, 'carrier')
+                        targetLoc(end, :) = [];
+                    end
+                end
+                if ~ isIntact(carrier, playerShips)
+                    targetLoc = [];
+                    targetAcquired = false;
+                    currentShip = '';
+
+                end
+            elseif member(enemyTarget, battleship)
+                [sz, ~] = size(targetLoc);
+                if sz == 1
+                    currentShip = 'battleship';
+                else
+                    if ~strcmp(currentShip, 'battleship')
+                        targetLoc(end, :) = [];
+                    end
+                end
+                if ~ isIntact(battleship, playerShips)
+                    targetLoc = [];
+                    targetAcquired = false;
+                    currentShip = '';
+
+                end
+            elseif member(enemyTarget, cruiser)
+                [sz, ~] = size(targetLoc);
+                if sz == 1
+                    currentShip = 'cruiser';
+                else
+                    if ~strcmp(currentShip, 'cruiser')
+                        targetLoc(end, :) = [];
+                    end
+                end
+                if ~ isIntact(cruiser, playerShips)
+                    targetLoc = [];
+                    targetAcquired = false;
+                    currentShip = '';
+
+                end
+            elseif member(enemyTarget, submarine)
+                [sz, ~] = size(targetLoc);
+                if sz == 1
+                    currentShip = 'submarine';
+                else
+                    if ~strcmp(currentShip, 'submarine')
+                        targetLoc(end, :) = [];
+                    end
+                end
+                if ~ isIntact(submarine, playerShips)
+                    targetLoc = [];
+                    targetAcquired = false;
+                    currentShip = '';
+
+                end
+            elseif member(enemyTarget, destroyer)
+                [sz, ~] = size(targetLoc);
+                if sz == 1
+                    currentShip = 'destroyer';
+                else
+                    if ~strcmp(currentShip, 'destroyer')
+                        targetLoc(end, :) = [];
+                    end
+                end
+                if ~ isIntact(destroyer, playerShips)
+                    targetLoc = [];
+                    targetAcquired = false;
+                    currentShip = '';
+                end
+             
+            end
+            %draw the scene
+            drawScene(scene, playerLayer1, playerLayer2);
+            pause(3);
+         
+        else
+            %If not hit, add a miss sprite, then remove it when the scene
+            %switches
+            playerLayer2(enemyTarget(1), enemyTarget(2)) = missSprite;
+            drawScene(scene, playerLayer1, playerLayer2);
+            pause(2);
+            playerLayer2(enemyTarget(1), enemyTarget(2)) = transparentSprite;
+            drawScene(scene, playerLayer1, playerLayer2);
+        end
+        %if the player has no more intact ships then they have lost
+        if length(playerShips) == 0
+            gameOver = true;
+        else
+            gameOver = false;
+        end
+    else
+        %if the enemy has no more ships the winner is the player
+        winner = name;
+        gameOver = true;
+    end
+ 
+end
+
+fprintf("The winner is %s!", winner)
+
+%function to place an individual ship
+function [ship, Layer1] = placeShip(tileCount, getInput, playerShips, scene, Layer1)
+%if the ships location is to be determined by player input
+if getInput
+    possible = true;
+    button = 1;
+    prevRow = 0;
+    prevCol = 0;
+    %prevBacground is a 3 column by x row array formatted (r, c, sprite)
+    prevBackground = [];
+    [row, col, button] = getMouseInput(scene);
+    %while the player's pressed button is left click, or the placement of
+    %the ship is impossible
+    while button == 1 || ~ possible
+        %Take the row and column desired, and check if it is possible given
+        %all of the other ships and proximity to edges, and also return a
+        %list of all possible coordinates the ship can be at centering
+        %around the tile clicked
+        [possible, coordlist] = shipPossibility(row, col, tileCount, playerShips);
+        %if there is a valid ship placement at the specified coordinate
+        if possible
+        %On every click, ensure return the board to its initialized state
+            if prevRow ~= row && prevCol ~= col
+                for i = 1:length(prevBackground)
+                    Layer1(prevBackground(i, 1), prevBackground(i, 2)) = prevBackground(i, 3);
+                end
+                tileOffset = 1;
+                drawScene(scene, Layer1);
+            else
+                [sz, dnm] = size(prevBackground);
+                for i = 1:sz
+                    Layer1(prevBackground(i, 1), prevBackground(i, 2)) = prevBackground(i, 3);
+                end
+                tileOffset = tileOffset + tileCount;
+                if tileOffset > length(coordlist) - tileCount + 1
+                    tileOffset = 1;
+                end
+            end
+            %Determine if the ship is horizontal or vertical, then select
+            %the ship parts accordingly
+            if coordlist(tileOffset, 1) - coordlist(tileOffset + 1, 1) ~= 0
+                shipHead = 2;
+                shipEnd = 4;
+                shipMid = 12;
+            else
+                shipHead = 3;
+                shipEnd = 11;
+                shipMid = 13;
+            end
+            %Save the background tile, then replace the tile with the ship
+            %tile ensuring that the head is at the front and the end is at
+            %the back
+            prevBackground(1, :) = [coordlist(tileOffset, 1), coordlist(tileOffset, 2), Layer1(coordlist(1, 1), coordlist(1, 2))];
+            Layer1(coordlist(tileOffset, 1), coordlist(tileOffset, 2)) = shipHead;
+            prevIndex = 2;
+            for i = 1 + tileOffset:tileOffset + tileCount - 2
+                prevBackground(prevIndex, :) = [coordlist(i, 1), coordlist(i, 2), Layer1(coordlist(i, 1), coordlist(i, 2))];
+                Layer1(coordlist(i, 1), coordlist(i, 2)) = shipMid;
+                prevIndex = prevIndex + 1;
+            end
+            prevBackground(end + 1, :) = [coordlist(tileOffset + tileCount - 1, 1), coordlist(tileOffset + tileCount - 1, 2), Layer1(coordlist(tileOffset + tileCount - 1, 1), coordlist(tileOffset + tileCount - 1, 2))];
+            Layer1(coordlist(tileOffset + tileCount - 1, 1), coordlist(tileOffset + tileCount - 1, 2)) = shipEnd;
+            drawScene(scene, Layer1);
+            prevRow = row;
+            prevCol = col;
+        else
+            %if there is no possible ship orientation at the location, then
+            %make th user select again
+            fprintf('Location (%i,%i) is obstructed, please choose again', row, col)
+            prevRow = 0;
+            prevCol = 0;
+        end
+        %get a new mouse input
+        [row, col, button] = getMouseInput(scene);
+    end
+else
+    %If coordinates need to be generated for the computer
+    possible = false;
+    while ~ possible
+        %generate random coordinates and check if possible
+        row = randi([2, 9], 1, 1);
+        col = randi([2, 9], 1, 1);
+        [possible, coordlist] = shipPossibility(row, col, tileCount, playerShips);
+    end
+    %get the number of orientations, and generate a random number between 1
+    %and that number
+    orientationCount = length(coordlist) / tileCount;
+    orientation = randi(orientationCount);
+    tileOffset = tileCount * orientation - tileCount + 1;
+    %place that orientation on the board
+    if coordlist(tileOffset, 1) - coordlist(tileOffset + 1, 1) ~= 0
+        shipHead = 2;
+        shipEnd = 4;
+        shipMid = 12;
+    else
+        shipHead = 3;
+        shipEnd = 11;
+        shipMid = 13;
+    end
+    Layer1(coordlist(tileOffset, 1), coordlist(tileOffset, 2)) = shipHead;
+    for i = 1 + tileOffset:tileOffset + tileCount - 2
+        Layer1(coordlist(i, 1), coordlist(i, 2)) = shipMid;
+    end
+    Layer1(coordlist(tileOffset + tileCount - 1, 1), coordlist(tileOffset + tileCount - 1, 2)) = shipEnd;
+end
+%set the output coordinate list of this function to the desired list of
+%ship coordinates
+for i = 1:tileCount
+    ship(i, 1:2) = coordlist(tileOffset + i - 1, :);
+end
+end
+%takes in a set of corrdinates and outputs a boolean if the coordinates can
+%hold a ship or not, and a list of possible coordinates the ship can take
+%up.
+function [possible, coordList] = shipPossibility(row, col, tileCount, playerShips)
+left = [];
+right = [];
+up = [];
+down = [];
+%for each orientation of the ship (cursor being the leftmost, rightmost,
+%highest, and lowest point on the ship) check if the coordinates are not
+%outside the bounds of the map, and that it doesn't intersect another ship
+if col + tileCount - 1 < 10 && col ~= 1 && row ~= 1
+    for i = col:col + tileCount - 1
+        left(end + 1, 1:2) = [row, i];
+        if member(left(end, :), playerShips)
+            left = [];
+            break;
+        end
+    end
+else
+    left = [];
+end
+if col - tileCount + 1 > 1 && col ~= 1 && row ~= 1
+    for i = col - tileCount + 1:col
+        right(end + 1, 1:2) = [row, i];
+        if member(right(end, :), playerShips)
+            right = [];
+            break;
+        end
+    end
+else
+    right = [];
+end
+if row + tileCount - 1 < 10 && col ~= 1 && row ~= 1
+    for i = row:row + tileCount - 1
+        down(end + 1, 1:2) = [i, col];
+        if member(down(end, :), playerShips)
+            down = [];
+            break;
+        end
+    end
+else
+    down = [];
+end
+if row - tileCount + 1 > 1 && col ~= 1 && row ~= 1
+    for i = row - tileCount + 1:row
+        up(end + 1, 1:2) = [i, col];
+        if member(up(end, :), playerShips)
+            up = [];
+            break;
+        end
+    end
+else
+    up = [];
+end
+%append the all the possible coordinates the ship could take up into a
+%single matrix, and check if the list is longer than 0
+coordList = [up; left; down; right];
+possible = false;
+if length(coordList) > 0
+    possible = true;
+end
+
+end
+%This is a generic function to check if a matrix contains a row which is
+%equal to a vector. We were unable to find a built-in MATLAB function, so
+%an orignal one must be made
+function answ = member(vec, mat)
+[r, c] = size(mat);
+answ = false;
+for i = 1:r
+    if mat(i, 1) == vec(1) && mat(i, 2) == vec(2)
+        answ = true;
+    end
+end
+end
+%Creates a gameboard, either fully transparent or with a randomly generated
+%background
+function layer = instatiateLayer(size, background)
+%create a background of 1s
+layer = ones(size);
+%If a background needs generated
+if background
+    %Creates a vector of the indecies containing letters and numbers so it
+    %is easy to loop through
+    letters = [5:10, 15, 16];
+    numbers = [17:20, 25:28];
+    %initialize the indecies of important sprites as a variable
+    primarySprite = 1;
+    altSprite1 = 14;
+    altSprite2 = 22;
+    altSprite3 = 23;
+    %generate the letters and numbers
+    for i = 1:length(letters)
+        layer(1, i + 1) = letters(i);
+    end
+    for i = 1:length(numbers)
+        layer(i + 1, 1) = numbers(i);
+    end
+    %set the corner as a black square
+    layer(1, 1) = 29;
+    %generate gameboard randomly inserting special background tiles for
+    %flavor. each background tile has around a 4% chance to generate on any
+    %given tile.
+    for col = 2:size
+        for row = 2:size
+            spriteChoice = rand();
+            if spriteChoice < 0.87
+                layer(row, col) = primarySprite;
+            elseif spriteChoice < 0.91
+                layer(row, col) = altSprite1;
+            elseif spriteChoice < 0.95
+                layer(row, col) = altSprite2;
+            else
+                layer(row, col) = altSprite3;
+            end
+        end
+    end
+else
+    %If it is a transparent layer, every tile is transparent
+    layer(:, :) = 30;
+end
+end
+
+%Check if a ship is destroyed by a certain coordinate, and if it is display
+%a message. While this function is only called once, it is a function to
+%clean up the while loop
+function messageOnDestroy(Ships, carrier, battleship, cruiser, submarine, destroyer, target)
+if member(target, carrier)
+    if ~ isIntact(carrier, Ships)
+        fprintf('\t\t\t\t\t\t\t\t\t\t\t\t\t\t-----ALERT-----You have sunk the enemy Carrier!-----ALERT-----')
+     
+    end
+elseif member(target, battleship)
+    if ~ isIntact(battleship, Ships)
+        fprintf('\t\t\t\t\t\t\t\t\t\t\t\t\t\t-----ALERT-----You have sunk the enemy Battleship!-----ALERT-----')
+     
+    end
+elseif member(target, cruiser)
+    if ~ isIntact(cruiser, Ships)
+        fprintf('\t\t\t\t\t\t\t\t\t\t\t\t\t\t-----ALERT-----You have sunk the enemy Cruiser!-----ALERT-----')
+     
+    end
+elseif member(target, submarine)
+    if ~ isIntact(submarine, Ships)
+        fprintf('\t\t\t\t\t\t\t\t\t\t\t\t\t\t-----ALERT-----You have sunk the enemy Submarine!-----ALERT-----')
+     
+    end
+elseif member(target, destroyer)
+    if ~ isIntact(destroyer, Ships)
+        fprintf('\t\t\t\t\t\t\t\t\t\t\t\t\t\t-----ALERT-----You have sunk the enemy Destroyer!-----ALERT-----')
+    end
+ 
+end
+end
+%Check if a ship is intact, returning a boolean by looping over every
+%coordinate in a specific ship, and checking if it is a member (using our
+%own written member function) to see if it is in the list of ship
+%coordinates that are not hit yet
+function intact = isIntact(ship, ships)
+[sz, dnm] = size(ship);
+intactTiles = 0;
+intact = false;
+for i = 1:sz
+    if member(ship(i, :), ships)
+        intactTiles = intactTiles + 1;
+    end
+end
+if intactTiles > 0
+    intact = true;
+end
+end
+
+%enemy AI function
+function [row, col] = enemyAI(targets, acquired, loc, locations)
+if ~ acquired
+    %If the AI is not focused on a specific ship
+    found = false;
+    index = 0;
+    %locate the first coordinate in the list of coordinates that has not
+    %been hit and return it
+    while ~found
+        index = index + 1;
+        if ~member(locations(index, :), targets)
+            found = true;
+        end
+    end
+    row = locations(index, 1);
+    col = locations(index, 2);
+else
+    %if the AI is focued ona  target get the size of loc
+    [szloc, ~] = size(loc);
+    %If the ai has only hit one tile of the ship it is focused on
+    if szloc == 1
+        %generate a list of the four squares to the left, right, above, and
+        %below the tile hit.
+        guess = [loc(1) + 1, loc(2); loc(1), loc(2) + 1; loc(1) - 1, loc(2); loc(1), loc(2) - 1];
+        rowRemove = [];
+        %remove guesses which are out of bounds and already guessed
+        for i = 1:4
+            if guess(i, 1) > 9 || guess(i, 1) < 2 || guess(i, 2) > 9 || guess(i, 2) < 2 || member(guess(i, :), targets)
+                rowRemove = [rowRemove, i];
+            end
+        end
+        for i=length(rowRemove):-1:1
+            guess(rowRemove(i), :) = [];
+        end
+        row = guess(1, 1);
+        col = guess(1, 2);
+    else
+        %determine if the ship is vertical or horizontal, and which
+        %direction
+        vertDiff = loc(1, 1) - loc(end, 1);
+        horDiff = loc(1, 2) - loc(end, 2);
+        if vertDiff ~= 0
+            %If the previous guess was right keep going in that direction
+            %(same with horizontal below)
+            if loc(end, :) == targets(end, :)
+                row = loc(end, 1) + vertDiff / abs(vertDiff) * -1;
+                col = loc(end, 2);
+            else
+                %If the last guess was wrong(so it overshot one end of the
+                %ship and has length still on the other side to go then
+                %guess teh other side
+                row = loc(1, 1) + (vertDiff / abs(vertDiff));
+                col = loc(end, 2);
+            end
+        else
+            if loc(end, :) == targets(end, :)
+                row = loc(end, 1);
+                col = loc(end, 2) + horDiff / abs(horDiff) * -1;
+            else
+                row = loc(end, 1);
+                col = loc(1, 2) + (horDiff / abs(horDiff));
+            end
+        end
+    end
+end
+end
